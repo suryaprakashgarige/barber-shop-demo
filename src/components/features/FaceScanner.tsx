@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
-import { FilesetResolver, FaceLandmarker, FaceLandmarkerResult } from "@mediapipe/tasks-vision";
+import { FilesetResolver, FaceLandmarker, FaceLandmarkerResult, DrawingUtils } from "@mediapipe/tasks-vision";
 import * as faceapi from 'face-api.js';
 import { Button } from "@/components/ui/button";
 import { Camera, Check, Copy, ScanFace, Sparkles, RefreshCcw } from "lucide-react";
@@ -275,19 +275,21 @@ export function FaceScanner() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     if (result.faceLandmarks.length > 0) {
-      ctx.fillStyle = "#DC2626"; // Primary red for dots
+      const drawingUtils = new DrawingUtils(ctx);
       for (const landmarks of result.faceLandmarks) {
-        const keyIndices = [10, 152, 234, 454, 132, 361];
-        for (const idx of keyIndices) {
-          const point = landmarks[idx];
-          if (point) {
-            const x = point.x * canvas.width;
-            const y = point.y * canvas.height;
-            ctx.beginPath();
-            ctx.arc(x, y, 4, 0, 2 * Math.PI);
-            ctx.fill();
-          }
-        }
+        // 1. Tesselation (thin, low opacity network mesh)
+        drawingUtils.drawConnectors(
+          landmarks, 
+          FaceLandmarker.FACE_LANDMARKS_TESSELATION, 
+          { color: "#DC262630", lineWidth: 1 }
+        );
+        
+        // 2. Contours (Key outlines like face oval, eyes, lips for depth)
+        drawingUtils.drawConnectors(
+          landmarks, 
+          FaceLandmarker.FACE_LANDMARKS_CONTOURS, 
+          { color: "#DC262690", lineWidth: 1.5 }
+        );
       }
     }
   };

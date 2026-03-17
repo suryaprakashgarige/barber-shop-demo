@@ -202,7 +202,9 @@ export function FaceScanner() {
       const p1 = landmarks[idx1];
       const p2 = landmarks[idx2];
       if (!p1 || !p2) return 0;
-      return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+      const width = videoRef.current?.videoWidth || 1;
+      const height = videoRef.current?.videoHeight || 1;
+      return Math.hypot((p1.x - p2.x) * width, (p1.y - p2.y) * height);
     };
 
     const faceWidth = dist(234, 454);   // cheek to cheek
@@ -223,10 +225,15 @@ export function FaceScanner() {
       const ch = landmarks[152];
       const rj = landmarks[397];
       if (!lj || !ch || !rj) return 130;
-      const v1x = lj.x - ch.x;
-      const v1y = lj.y - ch.y;
-      const v2x = rj.x - ch.x;
-      const v2y = rj.y - ch.y;
+      
+      const width = videoRef.current?.videoWidth || 1;
+      const height = videoRef.current?.videoHeight || 1;
+      
+      const v1x = (lj.x - ch.x) * width;
+      const v1y = (lj.y - ch.y) * height;
+      const v2x = (rj.x - ch.x) * width;
+      const v2y = (rj.y - ch.y) * height;
+      
       const dot = v1x * v2x + v1y * v2y;
       const mag1 = Math.hypot(v1x, v1y);
       const mag2 = Math.hypot(v2x, v2y);

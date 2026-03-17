@@ -205,7 +205,7 @@ export function FaceScanner() {
   };
 
   const getAgeRangeBracket = (age: number) => {
-    if (age < 20) return "15-20";
+    if (age <= 22) return "15-20";
     if (age <= 30) return "20-30";
     if (age <= 40) return "30-40";
     if (age <= 50) return "40-50";
@@ -395,13 +395,13 @@ export function FaceScanner() {
                 <>
                   <video 
                     ref={videoRef} 
-                    className="absolute inset-0 w-full h-full object-cover opacity-80" 
+                    className="absolute inset-0 w-full h-full object-cover opacity-80 [transform:scaleX(-1)]" 
                     playsInline 
                     muted 
                   />
                   <canvas 
                     ref={canvasRef} 
-                    className="absolute inset-0 w-full h-full"
+                    className="absolute inset-0 w-full h-full [transform:scaleX(-1)]"
                     width={400} 
                     height={400} 
                   />

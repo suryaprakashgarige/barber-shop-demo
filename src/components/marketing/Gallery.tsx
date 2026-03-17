@@ -54,7 +54,7 @@ export function Gallery() {
           >
             {/* After Image (Background) */}
             <Image
-              src="https://images.unsplash.com/photo-1621605815971-fbc98d665033?q=80&w=2070&auto=format&fit=crop"
+              src="https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=2000&auto=format&fit=crop"
               alt="After Haircut"
               fill
               className="object-cover object-center pointer-events-none"
@@ -66,7 +66,7 @@ export function Gallery() {
               style={{ clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)` }}
             >
               <Image
-                src="https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=2000&auto=format&fit=crop"
+                src="/images/before_haircut_v2.png"
                 alt="Before Haircut"
                 fill
                 className="object-cover object-center pointer-events-none"
@@ -95,10 +95,10 @@ export function Gallery() {
         {/* Regular Gallery Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            "https://images.unsplash.com/photo-1549314449-62ecdb7391ab?w=800&h=800&fit=crop",
-            "https://images.unsplash.com/photo-1593726891038-05eea3801fec?w=800&h=800&fit=crop",
-            "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&h=800&fit=crop",
-            "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=800&h=800&fit=crop"
+            "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?w=600&h=600&fit=crop",
+            "https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=600&h=600&fit=crop",
+            "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&h=600&fit=crop",
+            "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600&h=600&fit=crop"
           ].map((src, i) => (
             <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
               <Image 

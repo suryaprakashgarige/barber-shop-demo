@@ -1,0 +1,2 @@
+﻿src/providers/LenisProvider.tsx(36,7): error TS2322: Type 'React.ReactNode' is not assignable to type 'import("C:/AI-tools/Websites/Solvrex Style/barber-shop/node_modules/@studio-freight/react-lenis/node_modules/@types/react/index").ReactNode'.
+  Type 'bigint' is not assignable to type 'ReactNode'.

@@ -34,7 +34,7 @@ const HAIRSTYLES: Hairstyle[] = [
   },
   { 
     id: "oval-side", name: "The Classic Side Part", 
-    image: "https://images.unsplash.com/photo-1620331311520-246422fd82f9?w=400&h=400&fit=crop", shapes: ["Oval"],
+    image: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400&h=400&fit=crop", shapes: ["Oval"],
     promptTemplate: "Use the uploaded face image as reference. Keep the exact same face and identity. Photorealistic portrait of a [age-range] [gender] with an oval face shape, featuring a sharp Classic Side Part haircut with a sleek finish. Professional barbershop lighting, sharp detail, front-facing, neutral background."
   },
   // ROUND
@@ -50,18 +50,18 @@ const HAIRSTYLES: Hairstyle[] = [
   },
   { 
     id: "round-crop", name: "French Crop with Skin Fade", 
-    image: "https://images.unsplash.com/photo-1519014816548-bf5fe059e98b?w=400&h=400&fit=crop", shapes: ["Round"],
+    image: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400&h=400&fit=crop", shapes: ["Round"],
     promptTemplate: "Use the uploaded face image as reference. Keep the exact same face and identity. Photorealistic portrait of a [age-range] [gender] with a round face shape, featuring a blunt French Crop haircut with a tight skin fade. Professional barbershop lighting, sharp detail, front-facing, neutral background."
   },
   // SQUARE
   { 
     id: "square-crew", name: "The Clean Crew Cut", 
-    image: "https://images.unsplash.com/photo-1519014816548-bf5fe059e98b?w=400&h=400&fit=crop", shapes: ["Square"],
+    image: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400&h=400&fit=crop", shapes: ["Square"],
     promptTemplate: "Use the uploaded face image as reference. Keep the exact same face and identity. Photorealistic portrait of a [age-range] [gender] with a square face shape, featuring a short, clean Crew Cut haircut. Professional barbershop lighting, sharp detail, front-facing, neutral background."
   },
   { 
     id: "square-slick", name: "Slicked Back Undercut", 
-    image: "https://images.unsplash.com/photo-1620331311520-246422fd82f9?w=400&h=400&fit=crop", shapes: ["Square"],
+    image: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400&h=400&fit=crop", shapes: ["Square"],
     promptTemplate: "Use the uploaded face image as reference. Keep the exact same face and identity. Photorealistic portrait of a [age-range] [gender] with a square face shape, featuring a Slicked Back Undercut haircut with disconnected sides. Professional barbershop lighting, sharp detail, front-facing, neutral background."
   },
   { 
@@ -88,12 +88,12 @@ const HAIRSTYLES: Hairstyle[] = [
   // OBLONG
   { 
     id: "oblong-taper", name: "Classic Taper Fade with Side Sweep", 
-    image: "https://images.unsplash.com/photo-1620331311520-246422fd82f9?w=400&h=400&fit=crop", shapes: ["Oblong"],
+    image: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400&h=400&fit=crop", shapes: ["Oblong"],
     promptTemplate: "Use the uploaded face image as reference. Keep the exact same face and identity. Photorealistic portrait of a [age-range] [gender] with an oblong face shape, featuring a Classic Taper Fade with a neat side-swept top. Professional barbershop lighting, sharp detail, front-facing, neutral background."
   },
   { 
     id: "oblong-crop", name: "Textured Crop (Low Fade)", 
-    image: "https://images.unsplash.com/photo-1519014816548-bf5fe059e98b?w=400&h=400&fit=crop", shapes: ["Oblong"],
+    image: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400&h=400&fit=crop", shapes: ["Oblong"],
     promptTemplate: "Use the uploaded face image as reference. Keep the exact same face and identity. Photorealistic portrait of a [age-range] [gender] with an oblong face shape, featuring a forward-laying Textured Crop haircut with a low, conservative fade. Professional barbershop lighting, sharp detail, front-facing, neutral background."
   },
   { 
@@ -133,6 +133,11 @@ export function FaceScanner() {
   const [isReady, setIsReady] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [hasDimensions, setHasDimensions] = useState(false);
+  const [hasFace, setHasFace] = useState(false);
+
+  const hasDimensionsRef = useRef(false);
+  const hasFaceRef = useRef(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<Hairstyle | null>(null);
   const [copied, setCopied] = useState(false);
@@ -141,12 +146,27 @@ export function FaceScanner() {
   const reqAnimRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Suppress MediaPipe's TFLite Info logs to console.error that interrupt Next.js dev overlays
+  useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args: any[]) => {
+      const msg = args[0];
+      if (typeof msg === 'string' && msg.includes('INFO: Created TensorFlow Lite XNNPACK delegate')) {
+        return; // ignore
+      }
+      originalError(...args);
+    };
+    return () => {
+      console.error = originalError;
+    };
+  }, []);
+
   // Load Models
   useEffect(() => {
     const initModels = async () => {
       // 1. MediaPipe
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
       );
       const faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: {
@@ -273,9 +293,28 @@ export function FaceScanner() {
         videoRef.current.videoWidth > 0 && 
         videoRef.current.videoHeight > 0
       ) {
-        // 1. MediaPipe for Shape
-        const results = landmarker.detectForVideo(videoRef.current, startTimeMs);
-        drawLandmarks(results);
+        if (!hasDimensionsRef.current) {
+          hasDimensionsRef.current = true;
+          if (canvasRef.current && videoRef.current) {
+            canvasRef.current.width = videoRef.current.videoWidth;
+            canvasRef.current.height = videoRef.current.videoHeight;
+          }
+          setHasDimensions(true);
+        }
+        try {
+          // 1. MediaPipe for Shape
+          const results = landmarker.detectForVideo(videoRef.current, startTimeMs);
+          
+          const isFaceVisible = results.faceLandmarks.length > 0;
+          if (hasFaceRef.current !== isFaceVisible) {
+            hasFaceRef.current = isFaceVisible;
+            setHasFace(isFaceVisible);
+          }
+
+          drawLandmarks(results);
+        } catch (err) {
+          // Suppress frame sizing race errors
+        }
       }
       reqAnimRef.current = requestAnimationFrame(predictLoop);
     }
@@ -283,6 +322,10 @@ export function FaceScanner() {
 
   useEffect(() => {
     if (isScanning) {
+      if (videoRef.current && streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        videoRef.current.play().catch(e => console.error("Video play failed:", e));
+      }
       reqAnimRef.current = requestAnimationFrame(predictLoop);
     }
     return () => {
@@ -295,10 +338,6 @@ export function FaceScanner() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
       setIsScanning(true);
       setScanResult(null);
       setSelectedStyle(null);
@@ -317,10 +356,14 @@ export function FaceScanner() {
       }
 
       const mpResults = landmarker.detectForVideo(videoRef.current, performance.now());
-      let calcShape: FaceShape = "Oval";
-      if (mpResults.faceLandmarks.length > 0) {
-        calcShape = calculateFaceShape(mpResults.faceLandmarks[0]);
+      if (mpResults.faceLandmarks.length === 0) {
+        alert("No face detected! Please look directly at the camera.");
+        setIsAnalyzing(false);
+        return;
       }
+      
+      let calcShape: FaceShape = "Oval";
+      calcShape = calculateFaceShape(mpResults.faceLandmarks[0]);
 
       let calcAge = "20-30";
       let calcGender = "male";
@@ -358,6 +401,8 @@ export function FaceScanner() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
     }
+    hasDimensionsRef.current = false;
+    setHasDimensions(false);
   };
 
   const fillPrompt = (template: string, result: ScanResult) => {
@@ -431,12 +476,12 @@ export function FaceScanner() {
                   <div className="absolute inset-x-0 bottom-8 flex justify-center z-20">
                     <Button 
                       onClick={analyzeFace} 
-                      disabled={isAnalyzing}
+                      disabled={isAnalyzing || !hasDimensions || !hasFace}
                       size="lg" 
-                      className="bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-full shadow-lg"
+                      className={`bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-full shadow-lg ${(!hasDimensions || !hasFace || isAnalyzing) ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                       <Sparkles className="w-5 h-5 mr-2" />
-                      {isAnalyzing ? "Analyzing..." : "Capture & Analyze"}
+                      {!hasDimensions ? "Initializing Video..." : !hasFace ? "No Face Detected" : isAnalyzing ? "Analyzing..." : "Capture & Analyze"}
                     </Button>
                   </div>
                 </>

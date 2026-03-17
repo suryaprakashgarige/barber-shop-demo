@@ -143,6 +143,12 @@ export function FaceScanner() {
   const [copied, setCopied] = useState(false);
   const [landmarker, setLandmarker] = useState<FaceLandmarker | null>(null);
 
+  // Deep Scan State Machine
+  const [scanStep, setScanStep] = useState<"idle" | "front" | "left" | "right" | "complete">("idle");
+  const scanStepRef = useRef<"idle" | "front" | "left" | "right" | "complete">("idle");
+  const scannedPosesRef = useRef<{ front?: any; left?: any; right?: any }>({});
+  const [scanStatusText, setScanStatusText] = useState("");
+
   const reqAnimRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -321,6 +327,50 @@ export function FaceScanner() {
           }
 
           drawLandmarks(results);
+
+          // Deep Scan Workflow Machine
+          if (isFaceVisible && scanStepRef.current !== "idle" && scanStepRef.current !== "complete") {
+            const landmarks = results.faceLandmarks[0];
+            const nose = landmarks[4];
+            const left = landmarks[234];
+            const right = landmarks[454];
+
+            if (nose && left && right) {
+              const width = videoRef.current?.videoWidth || 1;
+              const dLeft = Math.abs((nose.x - left.x) * width);
+              const dRight = Math.abs((nose.x - right.x) * width);
+              const ratio = dLeft / dRight;
+
+              const curStep = scanStepRef.current;
+              if (curStep === "front") {
+                if (ratio > 0.88 && ratio < 1.12) { // Symmetry
+                  scannedPosesRef.current.front = landmarks;
+                  scanStepRef.current = "left";
+                  setScanStep("left");
+                  setScanStatusText("Front Captured. Turn Left ←");
+                }
+              } else if (curStep === "left") {
+                if (ratio > 1.35) { // turned left
+                  scannedPosesRef.current.left = landmarks;
+                  scanStepRef.current = "right";
+                  setScanStep("right");
+                  setScanStatusText("Left Captured. Turn Right ➔");
+                }
+              } else if (curStep === "right") {
+                if (ratio < 0.65) { // turned right
+                  scannedPosesRef.current.right = landmarks;
+                  scanStepRef.current = "complete";
+                  setScanStep("complete");
+                  setScanStatusText("All captures complete! Analyzing...");
+                  
+                  // Trigger Analysis automatically
+                  setTimeout(() => {
+                    analyzeFace();
+                  }, 800);
+                }
+              }
+            }
+          }
         } catch (err) {
           // Suppress frame sizing race errors
         }
@@ -350,6 +400,12 @@ export function FaceScanner() {
       setIsScanning(true);
       setScanResult(null);
       setSelectedStyle(null);
+      
+      // Init Multi-Angle Steps
+      scanStepRef.current = "front";
+      setScanStep("front");
+      setScanStatusText("Position face straight into center frame.");
+      scannedPosesRef.current = {};
     } catch (err) {
       console.error("Camera access denied:", err);
     }
@@ -470,6 +526,13 @@ export function FaceScanner() {
 
               {isScanning && (
                 <>
+                  {scanStatusText && (
+                    <div className="absolute top-6 px-4 py-2 bg-black/70 backdrop-blur rounded-full border border-white/10 z-20 text-white text-xs font-semibold flex items-center gap-2 animate-in slide-in-from-top duration-300">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                      {scanStatusText}
+                    </div>
+                  )}
+
                   <video 
                     ref={videoRef} 
                     className="absolute inset-0 w-full h-full object-cover opacity-80 [transform:scaleX(-1)]" 
@@ -482,16 +545,25 @@ export function FaceScanner() {
                     width={400} 
                     height={400} 
                   />
+                  
+                  {scanStep === "complete" && (
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-30">
+                      <Sparkles className="w-12 h-12 text-primary animate-spin duration-1000 mb-4" />
+                      <p className="text-white font-bold text-lg">Deep Analysis Triggered...</p>
+                    </div>
+                  )}
+
                   <div className="absolute inset-x-0 bottom-8 flex justify-center z-20">
-                    <Button 
-                      onClick={analyzeFace} 
-                      disabled={isAnalyzing || !hasDimensions || !hasFace}
-                      size="lg" 
-                      className={`bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-full shadow-lg ${(!hasDimensions || !hasFace || isAnalyzing) ? 'opacity-70 cursor-not-allowed' : ''}`}
-                    >
-                      <Sparkles className="w-5 h-5 mr-2" />
-                      {!hasDimensions ? "Initializing Video..." : !hasFace ? "No Face Detected" : isAnalyzing ? "Analyzing..." : "Capture & Analyze"}
-                    </Button>
+                    {scanStep !== "idle" && scanStep !== "complete" && (
+                      <Button 
+                        disabled={true}
+                        size="lg" 
+                        className="bg-black/50 text-white border border-white/10 font-bold h-12 px-6 rounded-full shadow-lg backdrop-blur-md"
+                      >
+                        <ScanFace className="w-5 h-5 mr-2 animate-pulse" />
+                        Move your head as directed
+                      </Button>
+                    )}
                   </div>
                 </>
               )}

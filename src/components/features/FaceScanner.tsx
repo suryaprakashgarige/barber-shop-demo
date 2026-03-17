@@ -273,16 +273,26 @@ export function FaceScanner() {
     return "50+";
   };
 
-  const drawLandmarks = (result: FaceLandmarkerResult) => {
+  const drawLandmarks = (results: FaceLandmarkerResult) => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx || !videoRef.current) return;
+    if (!canvas || !videoRef.current) return;
+
+    // Sync scaling dimensions with video stream framing
+    const videoWidth = videoRef.current.videoWidth;
+    const videoHeight = videoRef.current.videoHeight;
+    if (videoWidth && videoHeight && (canvas.width !== videoWidth || canvas.height !== videoHeight)) {
+      canvas.width = videoWidth;
+      canvas.height = videoHeight;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    if (result.faceLandmarks.length > 0) {
+    if (results.faceLandmarks.length > 0) {
       const drawingUtils = new DrawingUtils(ctx);
-      for (const landmarks of result.faceLandmarks) {
+      for (const landmarks of results.faceLandmarks) {
         // 1. Tesselation (thin, low opacity network mesh)
         drawingUtils.drawConnectors(
           landmarks, 
@@ -541,9 +551,7 @@ export function FaceScanner() {
                   />
                   <canvas 
                     ref={canvasRef} 
-                    className="absolute inset-0 w-full h-full [transform:scaleX(-1)]"
-                    width={400} 
-                    height={400} 
+                    className="absolute inset-0 w-full h-full object-cover [transform:scaleX(-1)]"
                   />
                   
                   {scanStep === "complete" && (

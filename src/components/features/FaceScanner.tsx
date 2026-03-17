@@ -132,6 +132,7 @@ export function FaceScanner() {
 
   const [isReady, setIsReady] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<Hairstyle | null>(null);
   const [copied, setCopied] = useState(false);
@@ -176,31 +177,58 @@ export function FaceScanner() {
     });
   }, []);
 
-  const calculateFaceShape = (landmarks: any[]) => {
-    const top = landmarks[10];
-    const bottom = landmarks[152];
-    const leftCheek = landmarks[234];
-    const rightCheek = landmarks[454];
-    const leftJaw = landmarks[132];
-    const rightJaw = landmarks[361];
+  const calculateFaceShape = (landmarks: any[]): FaceShape => {
+    const dist = (idx1: number, idx2: number) => {
+      const p1 = landmarks[idx1];
+      const p2 = landmarks[idx2];
+      if (!p1 || !p2) return 0;
+      return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    };
 
-    if (!top || !bottom || !leftCheek || !rightCheek) return "Oval";
+    const faceWidth = dist(234, 454);   // cheek to cheek
+    const faceHeight = dist(10, 152);    // forehead to chin
+    const jawWidth = dist(172, 397);     // jaw corners
+    const foreheadWidth = dist(70, 300);  // forehead width
 
-    const faceLength = Math.hypot(bottom.x - top.x, bottom.y - top.y);
-    const faceWidth = Math.hypot(rightCheek.x - leftCheek.x, rightCheek.y - leftCheek.y);
-    const jawWidth = Math.hypot(rightJaw.x - leftJaw.x, rightJaw.y - leftJaw.y);
+    if (faceWidth === 0) return "Oval";
 
-    const ratio = faceLength / faceWidth;
+    const lwRatio = faceHeight / faceWidth;
+    const foreheadToJaw = foreheadWidth / (jawWidth || 1);
+    const foreheadToFace = foreheadWidth / faceWidth;
+    const jawToFace = jawWidth / faceWidth;
 
-    if (ratio > 1.5) return "Oblong";
-    if (ratio >= 1.2 && ratio <= 1.5) {
-      if (jawWidth / faceWidth < 0.8) return "Heart";
-      return "Oval";
-    }
-    if (ratio < 1.2) {
-      if (jawWidth / faceWidth > 0.9) return "Square";
+    // Estimate Jaw Angle (approximate for Round vs Square)
+    const estimateJawAngle = () => {
+      const lj = landmarks[172];
+      const ch = landmarks[152];
+      const rj = landmarks[397];
+      if (!lj || !ch || !rj) return 130;
+      const v1x = lj.x - ch.x;
+      const v1y = lj.y - ch.y;
+      const v2x = rj.x - ch.x;
+      const v2y = rj.y - ch.y;
+      const dot = v1x * v2x + v1y * v2y;
+      const mag1 = Math.hypot(v1x, v1y);
+      const mag2 = Math.hypot(v2x, v2y);
+      if (mag1 === 0 || mag2 === 0) return 130;
+      const cosAngle = Math.max(-1, Math.min(1, dot / (mag1 * mag2)));
+      return Math.acos(cosAngle) * (180 / Math.PI);
+    };
+
+    const jawAngle = estimateJawAngle();
+
+    // 1. OBLONG
+    if (lwRatio >= 1.6) return "Oblong";
+
+    // 2. SQUARE vs ROUND
+    if (lwRatio < 1.15) {
+      if (jawAngle < 130) return "Square";
       return "Round";
     }
+
+    // 3. HEART
+    if (lwRatio >= 1.15 && lwRatio < 1.45 && foreheadToJaw > 1.15) return "Heart";
+
     return "Oval"; // fallback
   };
 
@@ -274,59 +302,54 @@ export function FaceScanner() {
       setIsScanning(true);
       setScanResult(null);
       setSelectedStyle(null);
-
-      // Perform dual-scan calculation after giving camera 2 seconds to focus
-      setTimeout(async () => {
-        if (!videoRef.current || videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
-          stopScan();
-          setScanResult({
-            faceShape: "Oval",
-            ageRange: "20-30",
-            gender: "male"
-          });
-          return;
-        }
-        
-        // MediaPipe (Shape)
-        const mpResults = landmarker.detectForVideo(videoRef.current, performance.now());
-        let calcShape: FaceShape = "Oval";
-        if (mpResults.faceLandmarks.length > 0) {
-          calcShape = calculateFaceShape(mpResults.faceLandmarks[0]);
-        }
-
-        // face-api.js (Age/Gender)
-        let calcAge = "20-30";
-        let calcGender = "male";
-        try {
-          const detection = await faceapi.detectSingleFace(
-            videoRef.current, 
-            new faceapi.TinyFaceDetectorOptions()
-          ).withAgeAndGender();
-          
-          if (detection) {
-            calcAge = getAgeRangeBracket(detection.age);
-            calcGender = detection.gender; // "male" | "female"
-          }
-        } catch (e) {
-          console.error("Face-api failed:", e);
-        }
-
-        stopScan();
-        setScanResult({
-          faceShape: calcShape,
-          ageRange: calcAge,
-          gender: calcGender
-        });
-      }, 3000);
-
     } catch (err) {
       console.error("Camera access denied:", err);
-      // Fallback
+    }
+  };
+
+  const analyzeFace = async () => {
+    if (!videoRef.current || !landmarker) return;
+    setIsAnalyzing(true);
+    
+    try {
+      if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+        throw new Error("Video Dimensions not ready.");
+      }
+
+      const mpResults = landmarker.detectForVideo(videoRef.current, performance.now());
+      let calcShape: FaceShape = "Oval";
+      if (mpResults.faceLandmarks.length > 0) {
+        calcShape = calculateFaceShape(mpResults.faceLandmarks[0]);
+      }
+
+      let calcAge = "20-30";
+      let calcGender = "male";
+      try {
+        const detection = await faceapi.detectSingleFace(
+          videoRef.current, 
+          new faceapi.TinyFaceDetectorOptions()
+        ).withAgeAndGender();
+        
+        if (detection) {
+          calcAge = getAgeRangeBracket(detection.age);
+          calcGender = detection.gender;
+        }
+      } catch (e) {
+        console.error("face-api failed:", e);
+      }
+
+      stopScan();
       setScanResult({
-        faceShape: "Oval",
-        ageRange: "20-30",
-        gender: "male"
+        faceShape: calcShape,
+        ageRange: calcAge,
+        gender: calcGender as "male" | "female"
       });
+    } catch (err) {
+      console.error("Scan calculation failed:", err);
+      stopScan();
+      setScanResult({ faceShape: "Oval", ageRange: "20-30", gender: "male" });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -405,11 +428,16 @@ export function FaceScanner() {
                     width={400} 
                     height={400} 
                   />
-                  <div className="absolute inset-x-0 bottom-8 flex justify-center z-10">
-                    <div className="bg-black/50 backdrop-blur-md text-white px-6 py-3 rounded-full flex items-center gap-3 animate-pulse">
-                      <ScanFace className="w-5 h-5" />
-                      <span className="font-semibold tracking-wide">Analyzing Facial Structure...</span>
-                    </div>
+                  <div className="absolute inset-x-0 bottom-8 flex justify-center z-20">
+                    <Button 
+                      onClick={analyzeFace} 
+                      disabled={isAnalyzing}
+                      size="lg" 
+                      className="bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-full shadow-lg"
+                    >
+                      <Sparkles className="w-5 h-5 mr-2" />
+                      {isAnalyzing ? "Analyzing..." : "Capture & Analyze"}
+                    </Button>
                   </div>
                 </>
               )}

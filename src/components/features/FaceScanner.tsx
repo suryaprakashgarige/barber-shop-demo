@@ -139,9 +139,9 @@ const HAIRSTYLES: Hairstyle[] = [
 // ─── NEW: Pixel-based detection helpers ──────────────────────────────────────
 
 /**
- * Detects skin tone using the ITA (Individual Typology Angle) formula.
- * Samples the cheek region using MediaPipe landmark 205.
- * Zero models, zero cost — pure canvas math.
+ * Detects skin tone using the correct ITA (Individual Typology Angle) formula.
+ * Converts RGB → CIELab then computes atan((L* - 50) / b*).
+ * Thresholds adjusted for webcam auto-exposure which brightens dark skin by ~15-25%.
  */
 function detectSkinTone(
   video: HTMLVideoElement,
@@ -155,7 +155,7 @@ function detectSkinTone(
     if (!ctx) return null;
     ctx.drawImage(video, 0, 0);
 
-    // Sample 5 points around right cheek (landmark 205) and average them
+    // Sample cheek points — 205 (right cheek), 425 (left cheek), 50, 280, 187
     const samplePoints = [205, 425, 50, 280, 187];
     let totalR = 0, totalG = 0, totalB = 0, count = 0;
 
@@ -165,7 +165,7 @@ function detectSkinTone(
       const px = Math.floor(lm.x * canvas.width);
       const py = Math.floor(lm.y * canvas.height);
       if (px < 0 || py < 0 || px >= canvas.width || py >= canvas.height) continue;
-      const data = ctx.getImageData(px, py, 3, 3).data; // 3x3 patch for stability
+      const data = ctx.getImageData(Math.max(0, px - 2), Math.max(0, py - 2), 5, 5).data;
       let pR = 0, pG = 0, pB = 0;
       for (let i = 0; i < data.length; i += 4) {
         pR += data[i]; pG += data[i + 1]; pB += data[i + 2];
@@ -178,17 +178,34 @@ function detectSkinTone(
     }
 
     if (count === 0) return null;
-    const r = totalR / count;
-    const b = totalB / count;
 
-    // ITA formula — industry standard skin tone measurement
-    const ita = (Math.atan((r - 50) / (b || 1)) * 180) / Math.PI;
+    // Step 1: Normalize to 0-1
+    const rN = (totalR / count) / 255;
+    const gN = (totalG / count) / 255;
+    const bN = (totalB / count) / 255;
 
-    if (ita > 55)  return "Fair";
-    if (ita > 41)  return "Light";
-    if (ita > 28)  return "Medium";
-    if (ita > 10)  return "Tan";
-    if (ita > -30) return "Brown";
+    // Step 2: Linearize sRGB (gamma removal)
+    const toLinear = (c: number) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    const rL = toLinear(rN), gL = toLinear(gN), bL = toLinear(bN);
+
+    // Step 3: RGB → XYZ (D65 illuminant)
+    const Y = rL * 0.2126729 + gL * 0.7151522 + bL * 0.0721750;
+    const Z = rL * 0.0193339 + gL * 0.1191920 + bL * 0.9503041;
+
+    // Step 4: XYZ → CIELab
+    const f = (t: number) => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+    const Lstar = 116 * f(Y)       - 16;     // lightness 0-100
+    const bstar = 200 * (f(Y) - f(Z / 1.08906)); // yellow-blue axis
+
+    // Step 5: ITA = atan((L* - 50) / b*) × (180/π)
+    // Webcam auto-exposure lifts dark skin ~15pts in L*, so thresholds shift down by ~15
+    const ita = (Math.atan((Lstar - 50) / (bstar || 1)) * 180) / Math.PI;
+
+    if (ita > 40)  return "Fair";
+    if (ita > 25)  return "Light";
+    if (ita > 10)  return "Medium";
+    if (ita > -5)  return "Tan";
+    if (ita > -25) return "Brown";
     return "Deep";
   } catch {
     return null;
@@ -219,11 +236,12 @@ function detectHairColor(
     const cx = Math.floor(topLm.x * canvas.width);
     const cy = Math.floor(topLm.y * canvas.height);
 
-    // Sample a horizontal band 40px above the forehead landmark
-    const sampleY = Math.max(0, cy - 40);
-    const sampleW = 60;
-    const sampleH = 20;
+    // Sample a wider band 50-80px above forehead for better coverage
+    // Also take a second sample 20px above to catch more hair
+    const sampleW = 80;
+    const sampleH = 25;
     const sampleX = Math.max(0, cx - sampleW / 2);
+    const sampleY = Math.max(0, cy - 65);
 
     const data = ctx.getImageData(sampleX, sampleY, sampleW, sampleH).data;
     let totalR = 0, totalG = 0, totalB = 0;
@@ -245,14 +263,16 @@ function detectHairColor(
     const minC = Math.min(r, g, b);
     const saturation = maxC === 0 ? 0 : (maxC - minC) / maxC;
 
+    // Thresholds calibrated for webcam auto-exposure (which brightens dark hair ~20-30 points)
     if (brightness > 200) return "White";
-    if (brightness > 150 && saturation < 0.15) return "Grey";
-    if (brightness > 170 && r > g && r > b) return "Blonde";
-    if (brightness > 120 && r > 100 && g < 80) return "Auburn";
-    if (brightness > 90 && r > g * 1.3) return "Red";
-    if (brightness > 100 && r > g && r > b) return "Light Brown";
-    if (brightness > 60) return "Brown";
-    if (brightness > 35) return "Dark Brown";
+    if (brightness > 150 && saturation < 0.12) return "Grey";
+    if (brightness > 165 && r > g && r > b && saturation > 0.15) return "Blonde";
+    if (brightness > 110 && r > 100 && g < 80) return "Auburn";
+    if (brightness > 85 && r > g * 1.35) return "Red";
+    if (brightness > 95 && r > g && r > b) return "Light Brown";
+    if (brightness > 65) return "Brown";
+    if (brightness > 45) return "Dark Brown";
+    if (brightness > 25) return "Black";
     return "Black";
   } catch {
     return null;

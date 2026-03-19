@@ -190,29 +190,12 @@ The generated prompt is displayed in a copyable text box so the user can paste i
 
 ---
 
-## 💼 SOLVREX Notes
-
-This site is **Demo Template #3** in the SOLVREX niche template library.
-
-| # | Niche | Status |
-|---|---|---|
-| 1 | Photography Studio | 🔄 In Progress |
-| 2 | Food Truck | 🔄 In Progress |
-| **3** | **Barbershop (GroomRoom)** | **✅ Done** |
-| 4 | Wellness / Spa | 🔄 In Progress |
-| 5 | Home Remodeling | 🔄 In Progress |
-| 6 | Tutoring | 🔄 In Progress |
-| 7 | Event Planning | 🔄 In Progress |
-| 8 | Dog Training | 🔄 In Progress |
-
----
-
 ## 📞 Contact / Agency
 
 Built by **SOLVREX** — web services for local businesses.
 
-- 🌐 Website: [solvrex.com](https://solvrex.com)
-- 📧 Email: contact@solvrex.com
+- 🌐 Instagram : thesolvrex
+- 📧 Email: surya.solvrex@gmail.com
 - 💼 Two tracks: **Niche Demo Templates** (local business) · **Solvrex Premium** (high-end builds)
 
 ---

@@ -194,7 +194,7 @@ The generated prompt is displayed in a copyable text box so the user can paste i
 
 Built by **SOLVREX** — web services for local businesses.
 
-- 🌐 Instagram : thesolvrex
+- 🌐 Instagram : [thesolvrex](https://www.instagram.com/thesolvrex/)
 - 📧 Email: surya.solvrex@gmail.com
 - 💼 Two tracks: **Niche Demo Templates** (local business) · **Solvrex Premium** (high-end builds)
 

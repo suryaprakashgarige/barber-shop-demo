@@ -46,15 +46,16 @@ export function Team() {
         }
       });
 
-      gsap.from(".team-card", {
-        y: 30,
-        opacity: 0,
-        duration: 0.8,
-        stagger: 0.2,
-        scrollTrigger: {
-          trigger: ".team-grid",
-          start: "top 80%",
-        }
+      gsap.utils.toArray(".team-card").forEach((card: any) => {
+        gsap.from(card, {
+          y: 30,
+          opacity: 0,
+          duration: 0.8,
+          scrollTrigger: {
+            trigger: card,
+            start: "top 85%",
+          }
+        });
       });
     }, sectionRef);
 

@@ -32,6 +32,24 @@ export default function RootLayout({
         <LenisProvider>
           {children}
         </LenisProvider>
+        <div
+          style={{
+            position: "fixed",
+            bottom: "16px",
+            left: "16px",
+            zIndex: 9999,
+            pointerEvents: "none",
+            background: "rgba(0,0,0,0.70)",
+            color: "#BCFF40",
+            fontSize: "11px",
+            padding: "6px 12px",
+            borderRadius: "20px",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255,255,255,0.05)",
+          }}
+        >
+          📍 Demo Site — Your branding replaces everything here
+        </div>
       </body>
     </html>
   );

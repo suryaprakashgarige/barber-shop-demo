@@ -36,11 +36,11 @@ export function Footer() {
             <ul className="space-y-4 text-gray-400 text-sm">
               <li className="flex items-start gap-3">
                 <MapPin className="text-primary w-5 h-5 flex-shrink-0" />
-                <span>123 Grooming Blvd, Suite 100<br/>New York, NY 10001</span>
+                <span>2847 South Lamar Blvd<br/>Austin, TX 78704</span>
               </li>
               <li className="flex items-start gap-3">
                 <Phone className="text-primary w-5 h-5 flex-shrink-0" />
-                <span>(555) 012-3456</span>
+                <span>(512) 867-3090</span>
               </li>
             </ul>
           </div>
@@ -59,7 +59,7 @@ export function Footer() {
           <div>
             <div className="w-full h-40 bg-zinc-900 rounded-xl overflow-hidden grayscale hover:grayscale-0 transition-all duration-500 relative">
               <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d193595.15830869428!2d-74.119763973046!3d40.69766374874431!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c24fa5d33f083b%3A0xc80b8f06e177fe62!2sNew%20York%2C%20NY%2C%20USA!5e0!3m2!1sen!2s!4v1709493645000!5m2!1sen!2s" 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3446.2754961322553!2d-97.79120492358!3d30.249732274871!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x865b49ef3a17edcb%3A0x3f6bc4c30c9d9c4a!2s2847%20S%20Lamar%20Blvd%2C%20Austin%2C%20TX%2078704!5e0!3m2!1sen!2sus!4v1710000000000!5m2!1sen!2sus" 
                 width="100%" 
                 height="100%" 
                 style={{ border: 0 }} 

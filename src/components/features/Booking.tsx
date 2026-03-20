@@ -1,9 +1,10 @@
-﻿// src/components/features/Booking.tsx
+// src/components/features/Booking.tsx
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, Clock, Scissors, User, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Scissors, User, ArrowRight, CheckCircle2, CheckCircle } from "lucide-react";
+import emailjs from '@emailjs/browser';
 
 export function Booking() {
   const [step, setStep] = useState(1);
@@ -15,13 +16,42 @@ export function Booking() {
     email: "",
     phone: ""
   });
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage("");
+    
+    try {
+      await emailjs.send(
+        'YOUR_SERVICE_ID',      // client will replace this
+        'YOUR_TEMPLATE_ID',     // client will replace this
+        {
+          service: formData.service,
+          date: formData.date,
+          time: formData.time,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+        },
+        'YOUR_PUBLIC_KEY'       // client will replace this
+      );
+      setSuccessMessage('Your appointment is confirmed! Check your email.');
+      setStep(4);
+    } catch (error) {
+      setErrorMessage('Booking failed. Please call us directly at (512) 867-3090');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleNext = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (step === 3) {
-      // Here is where it would send to CRM / Email list
-      alert("Booking Confirmed & Details sent to CRM for !");
-      setStep(4);
+      handleBookingSubmit(e);
     } else {
       setStep(s => Math.min(s + 1, 4));
     }
@@ -65,12 +95,25 @@ export function Booking() {
           <div className="p-8 md:p-12 flex-1 relative">
             {step === 4 ? (
               <div className="text-center py-12 animate-in fade-in zoom-in duration-500">
-                <div className="w-20 h-20 bg-amber-500/20 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-10 h-10" />
+                <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="w-10 h-10" />
                 </div>
-                <h3 className="text-3xl font-bold text-white mb-4">You're on the list!</h3>
-                <p className="text-zinc-400 mb-8">We've saved your spot and sent your 10% discount to {formData.email}</p>
-                <Button onClick={() => setStep(1)} className="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold px-8 h-12">Book Another</Button>
+                <h3 className="text-3xl font-bold text-white mb-4">Booking Confirmed!</h3>
+                <p className="text-zinc-400 mb-8">
+                  We'll see you on {formData.date} at {formData.time}.<br/>
+                  {successMessage || "A confirmation email is on its way."}
+                </p>
+                <div className="flex flex-col gap-3">
+                  <a 
+                    href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=Haircut+at+TheGroomRoom&details=Your+appointment+is+confirmed&location=2847+South+Lamar+Blvd+Austin+TX`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 flex items-center justify-center rounded-sm transition-colors"
+                  >
+                    Add to Google Calendar
+                  </a>
+                  <Button onClick={() => setStep(1)} variant="ghost" className="text-zinc-400 hover:text-white">Book Another</Button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleNext}>
@@ -195,11 +238,12 @@ export function Booking() {
                       <Button 
                         type="submit" 
                         className="flex-1 bg-amber-500 hover:bg-amber-600 text-zinc-950 h-14 text-lg font-bold rounded-sm group disabled:opacity-50 disabled:bg-zinc-800 disabled:text-zinc-500"
-                        disabled={!formData.name || !formData.email || !formData.phone}
+                        disabled={!formData.name || !formData.email || !formData.phone || isSubmitting}
                       >
-                        Confirm Booking <CheckCircle2 className="ml-2 w-5 h-5" />
+                        {isSubmitting ? "Processing..." : "Confirm Booking"} <CheckCircle2 className="ml-2 w-5 h-5" />
                       </Button>
                     </div>
+                    {errorMessage && <p className="mt-4 text-red-500 text-sm text-center">{errorMessage}</p>}
                   </div>
                 )}
               </form>

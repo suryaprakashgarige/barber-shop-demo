@@ -4,7 +4,9 @@ import { Services } from "@/components/marketing/Services";
 import { FaceScanner } from "@/components/features/FaceScanner";
 import { Gallery } from "@/components/marketing/Gallery";
 import { Reviews } from "@/components/marketing/Reviews";
+import { Team } from "@/components/marketing/Team";
 import { Booking } from "@/components/features/Booking";
+import { MobileCTA } from "@/components/ui/MobileCTA";
 import { Footer } from "@/components/layout/Footer";
 
 export default function Home() {
@@ -15,12 +17,14 @@ export default function Home() {
         <Hero />
       </div>
       <div className="space-y-0">
-        <FaceScanner />
         <Services />
+        <FaceScanner />
+        <Team />
         <Gallery />
         <Reviews />
         <Booking />
       </div>
+      <MobileCTA />
       <Footer />
     </main>
   );

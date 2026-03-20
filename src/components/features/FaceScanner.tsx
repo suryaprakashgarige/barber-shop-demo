@@ -370,7 +370,33 @@ function detectHairType(
   }
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+const MANUAL_RECOMMENDATIONS = {
+  oval: {
+    cut: "Mid Fade with Textured Top",
+    description: "Works with your balanced proportions. Ask for 2 on sides, scissor on top.",
+    image: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400"
+  },
+  round: {
+    cut: "High Taper with Volume",
+    description: "Adds height to elongate your face. Keep sides tight, build top volume.",
+    image: "https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=400"
+  },
+  square: {
+    cut: "Classic Slick Back",
+    description: "Softens your strong jawline. Medium length all around with natural part.",
+    image: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=400"
+  },
+  heart: {
+    cut: "Textured Crop with Fringe",
+    description: "Balances wider forehead. Short sides, textured fringe forward.",
+    image: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=400"
+  },
+  oblong: {
+    cut: "Side Part with Beard",
+    description: "Adds width to narrow face. Side swept with slight beard adds balance.",
+    image: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400"
+  }
+};
 
 export function FaceScanner() {
   const containerRef = useRef<HTMLElement>(null);
@@ -390,6 +416,9 @@ export function FaceScanner() {
   const [selectedStyle, setSelectedStyle] = useState<Hairstyle | null>(null);
   const [copied,        setCopied]        = useState(false);
   const [landmarker,    setLandmarker]    = useState<FaceLandmarker | null>(null);
+  const [showFallback,  setShowFallback]  = useState(false);
+  const [manualShape,   setManualShape]   = useState<keyof typeof MANUAL_RECOMMENDATIONS | null>(null);
+  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const reqAnimRef = useRef<number | null>(null);
   const streamRef  = useRef<MediaStream | null>(null);
@@ -557,9 +586,32 @@ export function FaceScanner() {
       setIsScanning(true);
       setScanResult(null);
       setSelectedStyle(null);
+      setShowFallback(false);
+      setManualShape(null);
+
+      // Start fallback timer
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = setTimeout(() => {
+        if (isScanning && !hasFaceRef.current) {
+          setShowFallback(true);
+        }
+      }, 8000);
+
     } catch (err) {
       console.error("Camera access denied:", err);
+      setShowFallback(true);
     }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    };
+  }, []);
+
+  const handleSkipScan = () => {
+    stopScan();
+    setShowFallback(true);
   };
 
   const analyzeFace = async () => {
@@ -716,7 +768,7 @@ export function FaceScanner() {
                 </div>
               )}
 
-              {isScanning && (
+              {isScanning && !showFallback && (
                 <>
                   <video
                     ref={videoRef}
@@ -728,7 +780,7 @@ export function FaceScanner() {
                     className="absolute inset-0 w-full h-full [transform:scaleX(-1)]"
                     width={400} height={400}
                   />
-                  <div className="absolute inset-x-0 bottom-8 flex justify-center z-20">
+                  <div className="absolute inset-x-0 bottom-8 flex flex-col items-center gap-4 z-20">
                     <Button
                       onClick={analyzeFace}
                       disabled={isAnalyzing || !hasDimensions || !hasFace}
@@ -738,8 +790,68 @@ export function FaceScanner() {
                       <Sparkles className="w-5 h-5 mr-2" />
                       {!hasDimensions ? "Initializing..." : !hasFace ? "No Face Detected" : isAnalyzing ? "Analyzing..." : "Capture & Analyze"}
                     </Button>
+                    <button 
+                      onClick={handleSkipScan}
+                      className="text-white/60 hover:text-white text-xs underline"
+                    >
+                      Skip Scan
+                    </button>
                   </div>
                 </>
+              )}
+
+              {showFallback && !scanResult && (
+                <div className="w-full h-full p-8 flex flex-col items-center justify-center bg-zinc-950 animate-in fade-in duration-500">
+                  <h3 className="text-xl font-bold text-white mb-2">Select Your Face Shape</h3>
+                  <p className="text-zinc-400 text-sm mb-8 text-center px-4">Camera taking too long? Choose your face shape manually below.</p>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-sm mb-8">
+                    {(Object.keys(MANUAL_RECOMMENDATIONS) as Array<keyof typeof MANUAL_RECOMMENDATIONS>).map((shape) => (
+                      <button
+                        key={shape}
+                        onClick={() => setManualShape(shape)}
+                        className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${manualShape === shape ? 'border-primary bg-primary/10 text-white' : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600'}`}
+                      >
+                        <ScanFace className="w-5 h-5" />
+                        <span className="text-xs font-bold uppercase tracking-wider">{shape}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {manualShape && (
+                    <div className="w-full animate-in slide-in-from-bottom-4 duration-500">
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex gap-4">
+                        <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                          <Image src={MANUAL_RECOMMENDATIONS[manualShape].image} alt={manualShape} width={80} height={80} className="object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-amber-500 font-bold text-sm mb-1">{MANUAL_RECOMMENDATIONS[manualShape].cut}</h4>
+                          <p className="text-zinc-400 text-xs leading-relaxed mb-3 line-clamp-2">{MANUAL_RECOMMENDATIONS[manualShape].description}</p>
+                          <a 
+                            href="#book" 
+                            className="text-primary text-xs font-bold hover:underline"
+                            onClick={() => {
+                              // Optional: pre-select service?
+                            }}
+                          >
+                            Book This Cut →
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <Button 
+                    onClick={() => { 
+                      setShowFallback(false); 
+                      startScan(); 
+                    }} 
+                    variant="ghost" 
+                    className="mt-8 text-zinc-500 hover:text-white"
+                  >
+                    Try Camera Again
+                  </Button>
+                </div>
               )}
 
               {scanResult && !isScanning && (

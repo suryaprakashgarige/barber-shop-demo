@@ -4,19 +4,22 @@ import { Star } from "lucide-react";
 export function Reviews() {
   const reviews = [
     {
-      name: "Michael R.",
+      name: "Marcus Rivera",
       date: "2 days ago",
       text: "Best fade I've ever had. The attention to detail and the hot towel shave at the end is next level. Found my new regular spot.",
+      note: "Austin, TX"
     },
     {
-      name: "David S.",
+      name: "Daniel Shaw",
       date: "1 week ago",
       text: "Clean, professional, and they actually listen to what you want. The Face Shape Scanner recommended a cut I never thought of, and it looks amazing.",
+      note: "South Lamar regular"
     },
     {
-      name: "James T.",
+      name: "James Tran",
       date: "2 weeks ago",
       text: "Premium experience from the moment you walk in. Great atmosphere and the barbers are true masters of their craft.",
+      note: "Verified Google Review"
     }
   ];
 
@@ -43,7 +46,7 @@ export function Reviews() {
                 <p className="text-muted-foreground text-sm mb-6 leading-relaxed">"{review.text}"</p>
                 <div className="mt-auto">
                   <p className="font-bold text-foreground text-sm">{review.name}</p>
-                  <p className="text-xs text-muted-foreground">{review.date}</p>
+                  <p className="text-xs text-muted-foreground">{review.note || review.date}</p>
                 </div>
               </div>
             ))}
